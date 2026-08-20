@@ -23,11 +23,58 @@
         });
       }
     });
+
+    // Ambiente riflesso (image-based lighting) per i materiali metallici/PBR:
+    // senza questa mappa d'ambiente, i materiali con metallicFactor alto
+    // risultano neri o senza texture visibile (riflettono il "vuoto").
+    AFRAME.registerComponent('env-lighting', {
+      init: function () {
+        var sceneEl = this.el;
+        var doIt = function () {
+          var renderer = sceneEl.renderer;
+          var pmremGenerator = new THREE.PMREMGenerator(renderer);
+          pmremGenerator.compileEquirectangularShader();
+
+          var envScene = new THREE.Scene();
+
+          var skyGeo = new THREE.SphereGeometry(50, 32, 32);
+          var skyMat = new THREE.ShaderMaterial({
+            side: THREE.BackSide,
+            uniforms: {
+              topColor: { value: new THREE.Color(0xffffff) },
+              bottomColor: { value: new THREE.Color(0x666666) }
+            },
+            vertexShader: "varying vec3 vWorldPosition; void main() { vec4 worldPosition = modelMatrix * vec4(position, 1.0); vWorldPosition = worldPosition.xyz; gl_Position = projectionMatrix * modelViewMatrix * vec4(position, 1.0); }",
+            fragmentShader: "uniform vec3 topColor; uniform vec3 bottomColor; varying vec3 vWorldPosition; void main() { float h = normalize(vWorldPosition).y; gl_FragColor = vec4(mix(bottomColor, topColor, max(h * 0.5 + 0.5, 0.0)), 1.0); }"
+          });
+          var sky = new THREE.Mesh(skyGeo, skyMat);
+          envScene.add(sky);
+
+          function addPanel(x, y, z, w, h, color) {
+            var mat = new THREE.MeshBasicMaterial({ color: color });
+            var geo = new THREE.PlaneGeometry(w, h);
+            var mesh = new THREE.Mesh(geo, mat);
+            mesh.position.set(x, y, z);
+            mesh.lookAt(0, 0, 0);
+            envScene.add(mesh);
+          }
+          addPanel(8, 10, 8, 10, 10, 0xffffff);
+          addPanel(-8, 4, -8, 6, 6, 0xffe0b0);
+          addPanel(0, -8, 6, 8, 8, 0x333333);
+
+          var envMap = pmremGenerator.fromScene(envScene, 0.04).texture;
+          sceneEl.object3D.environment = envMap;
+          pmremGenerator.dispose();
+        };
+        if (sceneEl.hasLoaded) { doIt(); } else { sceneEl.addEventListener('loaded', doIt); }
+      }
+    });
   </script>
 </head>
 
 <body style="margin: 0px; overflow: hidden;">
   <a-scene
+    env-lighting
     gltf-model="dracoDecoderPath: https://www.gstatic.com/draco/versioned/decoders/1.5.6/"
     embedded
     arjs="sourceType: webcam; debugUIEnabled: true; smooth: true; smoothCount: 10; smoothTolerance: 0.01; patternRatio: 0.9;">
@@ -39,7 +86,7 @@
     <a-marker type="pattern" url="pattern-Ledger_Nano_S_Plus.patt">
 
       <!-- ROTAZIONE DA VERIFICARE -->
-      <a-entity id="model-ledger" force-doubleside gltf-model="#ledger" scale="9 9 9" position="0.084 0.025 0.035" rotation="0 0 0"></a-entity>
+      <a-entity id="model-ledger" force-doubleside gltf-model="#ledger" scale="6 6 6" position="0.084 0.025 0.035" rotation="0 0 0"></a-entity>
 
     </a-marker>
 
