@@ -24,6 +24,33 @@
       }
     });
 
+    // Migliora la nitidezza delle texture viste da angolazioni oblique (tipiche in
+    // AR quando il telefono non è perfettamente frontale al marker): senza questo,
+    // il browser usa il filtro anisotropico minimo e le texture ripetute molte
+    // volte (come il tessuto) risultano più sfocate del necessario.
+    AFRAME.registerComponent('sharpen-textures', {
+      init: function () {
+        this.el.addEventListener('model-loaded', () => {
+          var sceneEl = this.el.sceneEl;
+          var renderer = sceneEl && sceneEl.renderer;
+          var maxAniso = renderer ? renderer.capabilities.getMaxAnisotropy() : 1;
+          this.el.object3D.traverse((node) => {
+            if (node.isMesh && node.material) {
+              var mats = Array.isArray(node.material) ? node.material : [node.material];
+              mats.forEach((m) => {
+                ['map', 'normalMap', 'roughnessMap', 'metalnessMap', 'alphaMap', 'emissiveMap'].forEach((slot) => {
+                  if (m[slot]) {
+                    m[slot].anisotropy = maxAniso;
+                    m[slot].needsUpdate = true;
+                  }
+                });
+              });
+            }
+          });
+        });
+      }
+    });
+
     // Ambiente riflesso (image-based lighting) per i materiali metallici/PBR:
     // senza questa mappa d'ambiente, i materiali con metallicFactor alto
     // risultano neri o senza texture visibile (riflettono il "vuoto").
@@ -86,7 +113,7 @@
     <a-marker type="pattern" url="pattern-Apple_Vision_Pro.patt">
 
       <!-- ROTAZIONE DA VERIFICARE -->
-      <a-entity id="model-visionpro" force-doubleside gltf-model="#visionpro" scale="0.4 0.4 0.4" position="0.003 0.005 -0.006" rotation="0 0 0"></a-entity>
+      <a-entity id="model-visionpro" force-doubleside sharpen-textures gltf-model="#visionpro" scale="0.4 0.4 0.4" position="0.003 0.005 -0.006" rotation="0 0 0"></a-entity>
 
     </a-marker>
 
