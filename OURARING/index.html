@@ -5,9 +5,6 @@
   <script src="https://aframe.io/releases/1.3.0/aframe.min.js"></script>
   <script src="https://cdn.jsdelivr.net/gh/AR-js-org/AR.js@3.4.8/aframe/build/aframe-ar.js"></script>
   <script>
-    // Debug: forza i materiali a essere visibili da entrambi i lati (evita che il
-    // modello risulti invisibile per via del backface culling se la rotazione
-    // di partenza mostra il "dietro" della mesh verso la camera).
     AFRAME.registerComponent('force-doubleside', {
       init: function () {
         this.el.addEventListener('model-loaded', () => {
@@ -23,10 +20,6 @@
         });
       }
     });
-
-    // Ambiente riflesso (image-based lighting) per i materiali metallici/PBR:
-    // senza questa mappa d'ambiente, i materiali con metallicFactor alto
-    // risultano neri o senza texture visibile (riflettono il "vuoto").
     AFRAME.registerComponent('env-lighting', {
       init: function () {
         var sceneEl = this.el;
