@@ -6,7 +6,22 @@
   <script src="https://cdn.jsdelivr.net/gh/AR-js-org/AR.js@3.4.8/aframe/build/aframe-ar.js"></script>
   <script>
     // I materiali metallici non hanno colore proprio: mostrano quello che riflettono.
-
+    // Senza una mappa d'ambiente riflettono il vuoto e risultano neri. Qui ne creo una
+    // da una scena grigia e la applico a tutta la scena; il tone mapping ACES comprime
+    // le alte luci invece di tagliarle a bianco pieno.
+    AFRAME.registerComponent('env-lighting', {
+      init: function () {
+        this.el.addEventListener('renderstart', () => {
+          var renderer = this.el.renderer;
+          renderer.toneMapping = THREE.ACESFilmicToneMapping;
+          var pmrem = new THREE.PMREMGenerator(renderer);
+          var envScene = new THREE.Scene();
+          envScene.background = new THREE.Color(0x999999);
+          this.el.object3D.environment = pmrem.fromScene(envScene, 0.04).texture;
+          pmrem.dispose();
+        });
+      }
+    });
   </script>
 </head>
 
