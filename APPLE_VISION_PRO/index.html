@@ -1,92 +1,47 @@
 <!DOCTYPE html>
-<html>
+<html lang="it">
 <head>
   <title>Tesi AR - Apple Vision Pro</title>
   <script src="https://aframe.io/releases/1.3.0/aframe.min.js"></script>
   <script src="https://cdn.jsdelivr.net/gh/AR-js-org/AR.js@3.4.8/aframe/build/aframe-ar.js"></script>
   <script>
-  
-    AFRAME.registerComponent('force-doubleside', {
+    // I materiali metallici non hanno colore proprio: mostrano quello che riflettono.
+    // Senza una mappa d'ambiente riflettono il vuoto e risultano neri. Qui ne creo una
+    // da una scena grigia e la applico a tutta la scena; il tone mapping ACES comprime
+    // le alte luci invece di tagliarle a bianco pieno.
+    AFRAME.registerComponent('env-lighting', {
       init: function () {
-        this.el.addEventListener('model-loaded', () => {
-          this.el.object3D.traverse((node) => {
-            if (node.isMesh && node.material) {
-              if (Array.isArray(node.material)) {
-                node.material.forEach(m => { m.side = THREE.DoubleSide; });
-              } else {
-                node.material.side = THREE.DoubleSide;
-              }
-            }
-          });
+        this.el.addEventListener('renderstart', () => {
+          var renderer = this.el.renderer;
+          renderer.toneMapping = THREE.ACESFilmicToneMapping;
+          var pmrem = new THREE.PMREMGenerator(renderer);
+          var envScene = new THREE.Scene();
+          envScene.background = new THREE.Color(0x999999);
+          this.el.object3D.environment = pmrem.fromScene(envScene, 0.04).texture;
+          pmrem.dispose();
         });
       }
     });
-
+  </script>
+  <script>
+    // Solo per il tessuto della fascia: viste di sbieco, le texture ripetute molte volte
+    // vengono sfocate dal filtro di default. Qui alzo il filtro anisotropico al massimo
+    // consentito dalla scheda grafica.
     AFRAME.registerComponent('sharpen-textures', {
       init: function () {
         this.el.addEventListener('model-loaded', () => {
-          var sceneEl = this.el.sceneEl;
-          var renderer = sceneEl && sceneEl.renderer;
-          var maxAniso = renderer ? renderer.capabilities.getMaxAnisotropy() : 1;
+          var maxAniso = this.el.sceneEl.renderer.capabilities.getMaxAnisotropy();
           this.el.object3D.traverse((node) => {
             if (node.isMesh && node.material) {
               var mats = Array.isArray(node.material) ? node.material : [node.material];
               mats.forEach((m) => {
-                ['map', 'normalMap', 'roughnessMap', 'metalnessMap', 'alphaMap', 'emissiveMap'].forEach((slot) => {
-                  if (m[slot]) {
-                    m[slot].anisotropy = maxAniso;
-                    m[slot].needsUpdate = true;
-                  }
+                ['map', 'normalMap', 'roughnessMap'].forEach((slot) => {
+                  if (m[slot]) { m[slot].anisotropy = maxAniso; m[slot].needsUpdate = true; }
                 });
               });
             }
           });
         });
-      }
-    });
-
-    AFRAME.registerComponent('env-lighting', {
-      init: function () {
-        var sceneEl = this.el;
-        var doIt = function () {
-          var renderer = sceneEl.renderer;
-          renderer.toneMapping = THREE.ACESFilmicToneMapping;
-          renderer.toneMappingExposure = 1.0;
-          var pmremGenerator = new THREE.PMREMGenerator(renderer);
-          pmremGenerator.compileEquirectangularShader();
-
-          var envScene = new THREE.Scene();
-
-          var skyGeo = new THREE.SphereGeometry(50, 32, 32);
-          var skyMat = new THREE.ShaderMaterial({
-            side: THREE.BackSide,
-            uniforms: {
-              topColor: { value: new THREE.Color(0xffffff) },
-              bottomColor: { value: new THREE.Color(0x666666) }
-            },
-            vertexShader: "varying vec3 vWorldPosition; void main() { vec4 worldPosition = modelMatrix * vec4(position, 1.0); vWorldPosition = worldPosition.xyz; gl_Position = projectionMatrix * modelViewMatrix * vec4(position, 1.0); }",
-            fragmentShader: "uniform vec3 topColor; uniform vec3 bottomColor; varying vec3 vWorldPosition; void main() { float h = normalize(vWorldPosition).y; gl_FragColor = vec4(mix(bottomColor, topColor, max(h * 0.5 + 0.5, 0.0)), 1.0); }"
-          });
-          var sky = new THREE.Mesh(skyGeo, skyMat);
-          envScene.add(sky);
-
-          function addPanel(x, y, z, w, h, color) {
-            var mat = new THREE.MeshBasicMaterial({ color: color });
-            var geo = new THREE.PlaneGeometry(w, h);
-            var mesh = new THREE.Mesh(geo, mat);
-            mesh.position.set(x, y, z);
-            mesh.lookAt(0, 0, 0);
-            envScene.add(mesh);
-          }
-          addPanel(8, 10, 8, 10, 10, 0xffffff);
-          addPanel(-8, 4, -8, 6, 6, 0xffe0b0);
-          addPanel(0, -8, 6, 8, 8, 0x333333);
-
-          var envMap = pmremGenerator.fromScene(envScene, 0.04).texture;
-          sceneEl.object3D.environment = envMap;
-          pmremGenerator.dispose();
-        };
-        if (sceneEl.hasLoaded) { doIt(); } else { sceneEl.addEventListener('loaded', doIt); }
       }
     });
   </script>
@@ -104,8 +59,7 @@
     </a-assets>
 
     <a-marker type="pattern" url="pattern-Apple_Vision_Pro.patt">
-      <a-entity id="model-visionpro" force-doubleside sharpen-textures gltf-model="#visionpro" scale="4 4 4" position="0.003 0.005 -0.006" rotation="0 0 0"></a-entity>
-
+      <a-entity id="model-visionpro" sharpen-textures gltf-model="#visionpro" scale="4 4 4" position="0.003 0.005 -0.006" rotation="0 0 0"></a-entity>
     </a-marker>
 
     <a-entity light="type: ambient; color: #FFF; intensity: 0.6"></a-entity>

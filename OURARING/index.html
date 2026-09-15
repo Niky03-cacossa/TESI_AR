@@ -9,9 +9,27 @@
     // Senza una mappa d'ambiente riflettono il vuoto e risultano neri. Qui ne creo una
     // da una scena grigia e la applico a tutta la scena; il tone mapping ACES comprime
     // le alte luci invece di tagliarle a bianco pieno.
-
+    AFRAME.registerComponent('env-lighting', {
+      init: function () {
+        this.el.addEventListener('renderstart', () => {
+          var renderer = this.el.renderer;
+          renderer.toneMapping = THREE.ACESFilmicToneMapping;
+          var pmrem = new THREE.PMREMGenerator(renderer);
+          var envScene = new THREE.Scene();
+          envScene.background = new THREE.Color(0x999999);
+          this.el.object3D.environment = pmrem.fromScene(envScene, 0.04).texture;
+          pmrem.dispose();
+        });
+      }
+    });
   </script>
 </head>
+
+<body style="margin: 0px; overflow: hidden;">
+  <a-scene
+    env-lighting
+    gltf-model="dracoDecoderPath: https://www.gstatic.com/draco/versioned/decoders/1.5.6/"
+    embedded
     arjs="sourceType: webcam; debugUIEnabled: false; smooth: true; smoothCount: 10; smoothTolerance: 0.01; patternRatio: 0.9;">
 
     <a-assets>
